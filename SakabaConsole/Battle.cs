@@ -38,22 +38,30 @@ namespace SakabaConsole
             IsRunning = true;
 
             string accoutName = "boss";
-            await MastodonClient.PostStatus($"{Boss.VoiceAppear} (LP: {Boss.LifePoint})", Visibility.Public);
+            string appear = new StringBuilder()
+                .AppendLine($"（{Boss.Name}が現れた！ LP: {Boss.LifePoint}）")
+                .AppendLine(Boss.VoiceAppear)
+                .ToString();
+            await MastodonClient.PostStatus(appear, Visibility.Public);
 
 
             UserStreaming = MastodonClient.GetUserStreaming();
             UserStreaming.OnNotification += async (sender, e) =>
             {
+                Console.WriteLine("通知を受信しました");
+
                 if (!IsRunning) { return; }
 
                 var status = e.Notification.Status;
                 if (status == null || !status.Content.Contains($"@<span>{accoutName}</span>")) { return; }
 
+                Console.WriteLine(status.Content);
+
                 string content = DeleteTags(status.Content);
                 if (Boss.Weakness != "")
                 {
                     bool matchWeakness = false;
-                    foreach (string weakness in Boss.Weakness.Split('/'))
+                    foreach (string weakness in Boss.Weakness.Replace("\r\n", "\n").Split('\n'))
                     {
                         if (weakness != "" && content.Contains(weakness))
                         {
@@ -95,7 +103,7 @@ namespace SakabaConsole
                 {
 
                     string dead = new StringBuilder()
-                        .AppendLine(Boss.VoiceDead)
+                        .AppendLine($"{Boss.VoiceDead} (残りLP: 0/{Boss.LifePoint})")
                         .AppendLine($"> {GetName(status.Account)}「{content}」")
                         .ToString();
                     await MastodonClient.PostStatus(dead, Visibility.Public);
@@ -114,6 +122,7 @@ namespace SakabaConsole
                 await MastodonClient.PostStatus(counter, Visibility.Public);
             };
 
+            Console.WriteLine("Battleを開始します");
             await UserStreaming.Start();
         }
 
@@ -133,12 +142,16 @@ namespace SakabaConsole
                     string lastUser = Results.Last().Name;
                     string lastContent = DeleteTags(Results.Last().Content);
 
-                    string result = new StringBuilder()
-                        .AppendLine($"【{Boss.Name}を倒した！】")
-                        .AppendLine($"「{Boss.DropItem}」を手に入れた")
-                        .AppendLine($"参加人数: {num}人 ({users})")
-                        .AppendLine($"最後の一撃: @{lastUser} 「{lastContent}」")
-                        .ToString();
+                    var builder = new StringBuilder()
+                        .AppendLine($"【{Boss.Name}を倒した！】");
+                    if (Boss.DropItem != "")
+                    {
+                        builder.AppendLine($"「{Boss.DropItem}」を手に入れた");
+                    }
+                    builder.AppendLine($"参加人数: {num}人 ({users})")
+                        .AppendLine($"最後の一撃: @{lastUser} 「{lastContent}」");
+
+                    string result = builder.ToString();
                     await record.MastodonClient.PostStatus(result, Visibility.Public);
                 }
                 else
