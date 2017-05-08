@@ -40,7 +40,7 @@ namespace SakabaConsole
             Console.WriteLine("Mastodonに接続しました");
 
             string ext = Path.GetExtension(ImagePath).Replace(".", "");
-            await boss.MastodonClient.UpdateCredentials(display_name: Name, avatar: $"data:image/{ext};base64,{base64String}");
+            await boss.MastodonClient.UpdateCredentials(avatar: $"data:image/{ext};base64,{base64String}");
             Console.WriteLine("プロフィールを更新しました");
 
             boss.Name = Name;

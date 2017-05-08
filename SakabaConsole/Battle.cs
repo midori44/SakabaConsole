@@ -18,7 +18,7 @@ namespace SakabaConsole
         MastodonClient MastodonClient;
         Boss Boss;
         List<BattleResult> Results;
-        int AttackCount;
+        int Life;
         bool IsRunning;
 
         public Battle(Boss boss)
@@ -35,7 +35,7 @@ namespace SakabaConsole
         public async Task Start()
         {
             Results = new List<BattleResult>();
-            AttackCount = 0;
+            Life = Boss.LifePoint;
             IsRunning = true;
 
             string accoutName = "boss";
@@ -82,8 +82,9 @@ namespace SakabaConsole
                     if (!matchWeakness)
                     {
                         string nodamage = new StringBuilder()
-                            .AppendLine($"> {GetName(status.Account)}「{content}」")
+                            .AppendLine($"{Boss.Name} (LP: {Life}/{Boss.LifePoint})")
                             .AppendLine($"（{Boss.Name}にダメージを与えられない！）")
+                            .AppendLine($"> {GetName(status.Account)}「{content}」")
                             .ToString();
                         await MastodonClient.PostStatus(nodamage, Visibility.Public);
                         return;
@@ -92,17 +93,17 @@ namespace SakabaConsole
                 if (randomizer.Next(99) < Boss.EvadeRate)
                 {
                     string evade = new StringBuilder()
-                        .AppendLine($"> {GetName(status.Account)}「{content}」")
+                        .AppendLine($"{Boss.Name} (LP: {Life}/{Boss.LifePoint})")
                         .AppendLine($"（{Boss.Name}は攻撃を回避した！）")
+                        .AppendLine($"> {GetName(status.Account)}「{content}」")
                         .ToString();
                     await MastodonClient.PostStatus(evade, Visibility.Public);
                     return;
                 }
 
                 
-                AttackCount++;
-                int life = Boss.LifePoint - AttackCount;
-                if (life < 0) { return; }
+                Life--;
+                if (Life < 0) { return; }
 
                 Results.Add(new BattleResult
                 {
@@ -110,11 +111,12 @@ namespace SakabaConsole
                     Name = status.Account.AccountName,
                     Content = status.Content
                 });
-                if (life == 0)
+                if (Life == 0)
                 {
                     string dead = new StringBuilder()
+                        .AppendLine($"{Boss.Name} (LP: 0/{Boss.LifePoint})")
+                        .AppendLine($"{Boss.VoiceDead}")
                         .AppendLine($"> {GetName(status.Account)}「{content}」")
-                        .AppendLine($"{Boss.VoiceDead} (残りLP: 0/{Boss.LifePoint})")
                         .ToString();
                     await MastodonClient.PostStatus(dead, Visibility.Public);
 
@@ -123,12 +125,13 @@ namespace SakabaConsole
                 }
 
                 string damage = new StringBuilder()
+                    .AppendLine($"{Boss.Name} (LP: {Life}/{Boss.LifePoint})")
+                    .AppendLine($"{Boss.VoiceDamage}")
                     .AppendLine($"> {GetName(status.Account)}「{content}」")
-                    .AppendLine($"{Boss.VoiceDamage} (残りLP: {life}/{Boss.LifePoint})")
                     .ToString();
                 await MastodonClient.PostStatus(damage, Visibility.Public);
 
-                if (life % 2 == 1)
+                if (Life % 2 == 1)
                 {
                     string counter = $"@{status.Account.AccountName} {Boss.VoiceCounter}";
                     await MastodonClient.PostStatus(counter, Visibility.Public);
