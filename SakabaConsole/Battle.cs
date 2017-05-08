@@ -1,6 +1,7 @@
 ﻿using Mastonet;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -38,13 +39,22 @@ namespace SakabaConsole
             IsRunning = true;
 
             string accoutName = "boss";
+
+            int[] mediaIds = null; // アイコンのアップロード
+            using (var stream = File.OpenRead(Boss.ImagePath))
+            {
+                var attach = await MastodonClient.UploadMedia(stream);
+                mediaIds = new int[] { attach.Id };
+            }
+            Console.WriteLine("画像をアップロードしました");
+
             string appear = new StringBuilder()
                 .AppendLine($"（{Boss.Name}が現れた！ LP: {Boss.LifePoint}）")
                 .AppendLine(Boss.VoiceAppear)
                 .ToString();
-            await MastodonClient.PostStatus(appear, Visibility.Public);
+            await MastodonClient.PostStatus(appear, Visibility.Public, mediaIds: mediaIds);
 
-
+            
             UserStreaming = MastodonClient.GetUserStreaming();
             UserStreaming.OnNotification += async (sender, e) =>
             {
@@ -72,8 +82,8 @@ namespace SakabaConsole
                     if (!matchWeakness)
                     {
                         string nodamage = new StringBuilder()
-                            .AppendLine($"（{Boss.Name}にダメージを与えられない！）")
                             .AppendLine($"> {GetName(status.Account)}「{content}」")
+                            .AppendLine($"（{Boss.Name}にダメージを与えられない！）")
                             .ToString();
                         await MastodonClient.PostStatus(nodamage, Visibility.Public);
                         return;
@@ -82,8 +92,8 @@ namespace SakabaConsole
                 if (randomizer.Next(99) < Boss.EvadeRate)
                 {
                     string evade = new StringBuilder()
-                        .AppendLine($"（{Boss.Name}は攻撃を回避した！）")
                         .AppendLine($"> {GetName(status.Account)}「{content}」")
+                        .AppendLine($"（{Boss.Name}は攻撃を回避した！）")
                         .ToString();
                     await MastodonClient.PostStatus(evade, Visibility.Public);
                     return;
@@ -91,7 +101,8 @@ namespace SakabaConsole
 
                 
                 AttackCount++;
-                if (AttackCount > Boss.LifePoint) { return; }
+                int life = Boss.LifePoint - AttackCount;
+                if (life < 0) { return; }
 
                 Results.Add(new BattleResult
                 {
@@ -99,12 +110,11 @@ namespace SakabaConsole
                     Name = status.Account.AccountName,
                     Content = status.Content
                 });
-                if (AttackCount == Boss.LifePoint)
+                if (life == 0)
                 {
-
                     string dead = new StringBuilder()
-                        .AppendLine($"{Boss.VoiceDead} (残りLP: 0/{Boss.LifePoint})")
                         .AppendLine($"> {GetName(status.Account)}「{content}」")
+                        .AppendLine($"{Boss.VoiceDead} (残りLP: 0/{Boss.LifePoint})")
                         .ToString();
                     await MastodonClient.PostStatus(dead, Visibility.Public);
 
@@ -113,13 +123,16 @@ namespace SakabaConsole
                 }
 
                 string damage = new StringBuilder()
-                    .AppendLine($"{Boss.VoiceDamage} (残りLP: {Boss.LifePoint - AttackCount}/{Boss.LifePoint})")
                     .AppendLine($"> {GetName(status.Account)}「{content}」")
+                    .AppendLine($"{Boss.VoiceDamage} (残りLP: {life}/{Boss.LifePoint})")
                     .ToString();
                 await MastodonClient.PostStatus(damage, Visibility.Public);
 
-                string counter = $"@{status.Account.AccountName} {Boss.VoiceCounter}";
-                await MastodonClient.PostStatus(counter, Visibility.Public);
+                if (life % 2 == 1)
+                {
+                    string counter = $"@{status.Account.AccountName} {Boss.VoiceCounter}";
+                    await MastodonClient.PostStatus(counter, Visibility.Public);
+                }
             };
 
             Console.WriteLine("Battleを開始します");

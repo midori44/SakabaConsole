@@ -1,9 +1,5 @@
-﻿using Mastonet;
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.IO;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace SakabaConsole
@@ -48,6 +44,7 @@ namespace SakabaConsole
             Console.WriteLine("プロフィールを更新しました");
 
             boss.Name = Name;
+            boss.ImagePath = ImagePath;
             boss.LifePoint = LifePoint;
             boss.EvadeRate = EvadeRate;
             boss.VoiceAppear = VoiceAppear;
